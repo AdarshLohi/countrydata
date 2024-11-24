@@ -1,6 +1,7 @@
 import express, { Application, urlencoded } from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
+import morgan from 'morgan';
 import dotenv from 'dotenv';
 import rateLimit from 'express-rate-limit';
 import routes from './routes';
@@ -17,6 +18,7 @@ app.use(cors());
 app.use(helmet());
 app.use(express.json());
 app.use(urlencoded({ extended: true }));
+app.use(morgan('dev'));
 
 const redisClient = redis.createClient();
 

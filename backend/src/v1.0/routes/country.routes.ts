@@ -1,8 +1,16 @@
 import { Router } from 'express';
-import { country } from '../controllers/country.controller';
+import {
+  countries,
+  countriesByCode,
+  countriesByRegion,
+  searchCountries,
+} from '../controllers/country.controller';
 
 const router: Router = Router();
 
-router.get('/', country);
+router.get('/', countries);
+router.get('/search', searchCountries);
+router.get('/:code', countriesByCode);
+router.get('/region/:region', countriesByRegion);
 
 export default router;
