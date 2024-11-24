@@ -1,10 +1,17 @@
 version: '3.8'
+
 services:
-  app:
+  api:
+    build: .
     image: adarshlohi/cicd-pipeline:latest
+    container_name: cicd-pipeline-container
     ports:
       - '8080:4000'
     environment:
-      - PORT=4000
-      - JWT_SECRET=6]%<d|Q}C/W)q|Gau>5+u1r{U3pp&K
-      - COUNTRY_API=https://restcountries.com/
+      - NODE_ENV=production
+    restart: unless-stopped
+    healthcheck:
+      test: ['CMD', 'curl', '-f', 'http://localhost:4000/']
+      interval: 30s
+      timeout: 10s
+      retries: 3

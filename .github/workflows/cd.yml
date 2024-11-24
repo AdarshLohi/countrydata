@@ -35,12 +35,45 @@ jobs:
           echo "Verifying deployment..."
           sudo docker ps | grep cicd-pipeline-container
 
-      - name: Start the service using Docker Compose
+      - name: Set up Docker Compose
         run: |
-          echo "Starting the service using Docker Compose..."
-          sudo docker-compose up -d
+          # Ensure docker-compose is installed
+          if ! command -v docker-compose &> /dev/null; then
+            sudo apt-get update
+            sudo apt-get install -y docker-compose
+          fi
+
+      - name: Deploy with Docker Compose
+        run: |
+          # Stop any running containers
+          sudo docker-compose down || true
+
+          # Remove old images
+          sudo docker image prune -f
+
+          # Pull latest image
+          sudo docker-compose pull
+
+          # Start containers in detached mode
+          sudo docker-compose up -d --build
+
+          # Wait for container to start
+          sleep 10
 
       - name: Verify deployment
         run: |
-          echo "Verifying deployment..."
-          sudo docker-compose ps
+          # Check container status
+          if ! sudo docker-compose ps | grep "Up"; then
+            echo "Container is not running"
+            sudo docker-compose logs
+            exit 1
+          fi
+
+          # Check if application is responding
+          if ! curl -s --retry 5 --retry-delay 5 http://localhost:8080/; then
+            echo "Application is not responding"
+            sudo docker-compose logs
+            exit 1
+          fi
+
+          echo "Deployment successful!"
