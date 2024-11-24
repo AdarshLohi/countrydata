@@ -1,0 +1,26 @@
+name: CD Pipeline - Frontend
+
+on:
+  workflow_run:
+    workflows: ['CI Pipeline - Frontend']
+    types:
+      - completed
+    branches: [main]
+
+jobs:
+  deploy:
+    runs-on: self-hosted
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+
+    steps:
+      - name: Pull latest Docker image
+        run: |
+          sudo docker pull adarshlohi/frontend-react:latest
+
+      - name: Stop old container
+        run: |
+          sudo docker rm -f frontend-container || true
+
+      - name: Start new container
+        run: |
+          sudo docker run -d -p 3000:80 --name frontend-container adarshlohi/frontend-react:latest
