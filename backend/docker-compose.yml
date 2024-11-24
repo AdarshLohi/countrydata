@@ -1,0 +1,10 @@
+version: '3.8'
+services:
+  app:
+    image: adarshlohi/cicd-pipeline:latest
+    ports:
+      - '8080:4000'
+    environment:
+      - PORT=4000
+      - JWT_SECRET=6]%<d|Q}C/W)q|Gau>5+u1r{U3pp&K
+      - COUNTRY_API=https://restcountries.com/
