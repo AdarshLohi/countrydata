@@ -24,7 +24,7 @@ export const fetchCountries = async (
       `1.0/countries?page=${page}&limit=${limit}`
     );
     return response.data;
-  } catch (error: any) {
+  } catch (error) {
     throw new Error(error.response?.data?.message || 'Failed to fetch countries');
   }
 };
