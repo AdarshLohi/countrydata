@@ -18,19 +18,19 @@ jobs:
       - name: Pull the docker image from Dockerhub
         run: |
           echo "Pulling latest image..."
-          docker pull adarshlohi/cicd-pipeline:latest
+          sudo docker pull adarshlohi/cicd-pipeline:latest
 
       - name: Delete the old docker container
         run: |
           echo "Removing old container if exists..."
-          docker rm -f cicd-pipeline-container || true
+          sudo docker rm -f cicd-pipeline-container || true
 
       - name: Run the docker container
         run: |
           echo "Starting new container..."
-          docker run -d -p 8080:4000 --name cicd-pipeline-container adarshlohi/cicd-pipeline:latest
+          sudo docker run -d -p 8080:4000 --name cicd-pipeline-container adarshlohi/cicd-pipeline:latest
 
       - name: Verify deployment
         run: |
           echo "Verifying deployment..."
-          docker ps | grep cicd-pipeline-container
+          sudo docker ps | grep cicd-pipeline-container
