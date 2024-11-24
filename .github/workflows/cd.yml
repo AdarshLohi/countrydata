@@ -1,18 +1,23 @@
 name: CD Pipeline
 
 on:
-  workflow: ['CI Pipeline']
-  types:
-    - completed
+  workflow_run:
+    workflows: ['CI Pipeline']
+    types:
+      - completed
+    branches:
+      - main
 
 jobs:
   build:
     runs-on: self-hosted
-
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
     steps:
       - name: Pull the docker image from Dockerhub
         run: sudo docker pull adarshlohi/cicd-pipeline:latest
+
       - name: Delete the old docker container
         run: sudo docker rm -f cicd-pipeline-container || true
+
       - name: Run the docker container
         run: sudo docker run -d -p 8080:4000 --name cicd-pipeline-container adarshlohi/cicd-pipeline:latest
