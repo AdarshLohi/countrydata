@@ -6,6 +6,7 @@ export interface Country {
   flag: string;
   region: string;
   timezone: string;
+  population?: string;
 }
 
 export interface PaginatedCountriesResponse {
