@@ -5,19 +5,32 @@ on:
     workflows: ['CI Pipeline']
     types:
       - completed
-    branches:
-      - main
+    branches: [main]
 
 jobs:
-  build:
+  deploy:
     runs-on: self-hosted
     if: ${{ github.event.workflow_run.conclusion == 'success' }}
     steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
       - name: Pull the docker image from Dockerhub
-        run: sudo docker pull adarshlohi/cicd-pipeline:latest
+        run: |
+          echo "Pulling latest image..."
+          docker pull adarshlohi/cicd-pipeline:latest
 
       - name: Delete the old docker container
-        run: sudo docker rm -f cicd-pipeline-container || true
+        run: |
+          echo "Removing old container if exists..."
+          docker rm -f cicd-pipeline-container || true
 
       - name: Run the docker container
-        run: sudo docker run -d -p 8080:4000 --name cicd-pipeline-container adarshlohi/cicd-pipeline:latest
+        run: |
+          echo "Starting new container..."
+          docker run -d -p 8080:4000 --name cicd-pipeline-container adarshlohi/cicd-pipeline:latest
+
+      - name: Verify deployment
+        run: |
+          echo "Verifying deployment..."
+          docker ps | grep cicd-pipeline-container
