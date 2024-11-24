@@ -1,7 +1,7 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
-import CountryList from './pages/CountryList';
-import CountryDetails from './pages/CountryDetails';
-import ErrorBoundary from './components/ErrorBoundary';
+import Home from '@/pages/Home';
+import CountryDetails from '@/pages/CountryDetails';
+import ErrorBoundary from '@/components/ErrorBoundary';
 
 function AppRouter() {
   return (
@@ -11,12 +11,12 @@ function AppRouter() {
           path='/'
           element={
             <ErrorBoundary>
-              <CountryList />
+              <Home />
             </ErrorBoundary>
           }
         />
         <Route
-          path='details/:name'
+          path='details/:code'
           element={
             <ErrorBoundary>
               <CountryDetails />

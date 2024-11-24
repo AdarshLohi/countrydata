@@ -147,24 +147,32 @@ export const countriesByCode = async (
 };
 
 export const countriesByRegion = async (
-  req: Request,
-  res: Response<ApiResponse>,
+  req: Request<{ region: string }, {}, {}, PaginationQuery>,
+  res: Response,
   next: NextFunction
 ): Promise<any> => {
   try {
-    // Extract the region parameter from the request query
     const { region } = req.params;
+    const page = parseInt(req.query.page || '1', 10);
+    const limit = parseInt(req.query.limit || '10', 10);
 
+    // Validate region and pagination parameters
     if (!region) {
-      logger.warn('Region is missing in the request');
       return res.status(400).json({
         status: 400,
         message: 'Region is required',
       });
     }
 
-    // Fetch all country data using the service
-    logger.info('Fetching country data from the service...');
+    if (page < 1 || limit < 1) {
+      return res.status(400).json({
+        status: 400,
+        message: 'Invalid pagination parameters. Page and limit must be positive numbers.',
+      });
+    }
+
+    // Fetch data from the service
+    logger.info('Fetching data from the service...');
     const countryDetails = await fetchCountryData();
 
     if (!countryDetails || countryDetails.length === 0) {
@@ -175,7 +183,7 @@ export const countriesByRegion = async (
       });
     }
 
-    // Filter countries by region
+    // Filter data by region
     const countriesInRegion = countryDetails.filter(
       (country: any) => country.region?.toLowerCase() === region.toLowerCase()
     );
@@ -188,28 +196,107 @@ export const countriesByRegion = async (
       });
     }
 
-    const result = filterDetails(countriesInRegion);
+    // Apply filtering and calculate pagination values
+    const filteredData = filterDetails(countriesInRegion);
+    const totalItems = filteredData.length;
+    const totalPages = Math.ceil(totalItems / limit);
+    const skip = (page - 1) * limit;
 
-    // Send the response
-    return res.status(200).json({
+    if (skip >= totalItems) {
+      return res.status(404).json({
+        status: 404,
+        message: 'Page not found',
+      });
+    }
+
+    const paginatedData = filteredData.slice(skip, skip + limit);
+
+    // Generate pagination URLs
+    const baseUrl = `${req.protocol}://${req.get('host')}${req.originalUrl.split('?')[0]}`;
+    const paginationData = {
+      currentPage: page,
+      totalPages: totalPages,
+      totalItems: totalItems,
+      itemsPerPage: limit,
+      hasNextPage: page < totalPages,
+      hasPrevPage: page > 1,
+      links: {
+        current: `${baseUrl}?page=${page}&limit=${limit}`,
+        next: page < totalPages ? `${baseUrl}?page=${page + 1}&limit=${limit}` : null,
+        prev: page > 1 ? `${baseUrl}?page=${page - 1}&limit=${limit}` : null,
+        first: `${baseUrl}?page=1&limit=${limit}`,
+        last: `${baseUrl}?page=${totalPages}&limit=${limit}`,
+      },
+    };
+
+    // Prepare and send the response
+    const response: PaginatedResponse = {
       status: 200,
       message: `Countries in the ${region} region retrieved successfully`,
-      data: result,
-    });
+      data: paginatedData,
+      pagination: paginationData,
+    };
+
+    return res.status(200).json(response);
   } catch (error: any) {
     logger.error(`Error fetching countries by region: ${error.message}`);
     next(error); // Pass error to the Express error handler
   }
 };
 
+// Types for pagination
+interface PaginationQuery {
+  page?: string;
+  limit?: string;
+  name?: string;
+  region?: string;
+  capital?: string;
+  timezone?: string;
+}
+
+interface PaginationData {
+  currentPage: number;
+  totalPages: number;
+  totalItems: number;
+  itemsPerPage: number;
+  hasNextPage: boolean;
+  hasPrevPage: boolean;
+  links: {
+    current: string;
+    next: string | null;
+    prev: string | null;
+    first: string;
+    last: string;
+  };
+}
+
+interface PaginatedResponse {
+  status: number;
+  message: string;
+  data: any[];
+  pagination: PaginationData;
+}
+
 export const searchCountries = async (
-  req: Request,
-  res: Response<ApiResponse>,
+  req: Request<{}, {}, {}, PaginationQuery>,
+  res: Response,
   next: NextFunction
 ): Promise<any> => {
   console.log('Query Params:', req.query);
   try {
-    // Extract query parameters
+    // Get pagination parameters from query string
+    const page = parseInt(req.query.page || '1', 10);
+    const limit = parseInt(req.query.limit || '10', 10);
+
+    // Validate pagination parameters
+    if (page < 1 || limit < 1) {
+      return res.status(400).json({
+        status: 400,
+        message: 'Invalid pagination parameters. Page and limit must be positive numbers.',
+      });
+    }
+
+    // Extract search query parameters
     const { name, region, capital, timezone } = req.query;
 
     if (!name && !region && !capital && !timezone) {
@@ -233,46 +320,56 @@ export const searchCountries = async (
       });
     }
 
+    // Normalize timezone format
+    const normalizeTimezone = (tz: string): string => {
+      tz = tz.trim().toUpperCase();
+      if (!tz.startsWith('UTC')) {
+        tz = 'UTC' + tz;
+      }
+      let timePart = tz.replace('UTC', '');
+      if (!timePart.startsWith('+') && !timePart.startsWith('-')) {
+        timePart = '+' + timePart;
+      }
+      const match = timePart.match(/^([+-])(\d{1,2}):?(\d{2})?$/);
+      if (match) {
+        const [, sign, hours, minutes = '00'] = match;
+        const paddedHours = hours.padStart(2, '0');
+        return `UTC${sign}${paddedHours}:${minutes}`;
+      }
+      return tz;
+    };
+
+    // Debug logging for timezone normalization
+    if (timezone) {
+      logger.debug(`Original timezone: ${timezone}`);
+      logger.debug(`Normalized timezone: ${normalizeTimezone(timezone as string)}`);
+    }
+
     // Filter countries by query parameters if provided
     const filteredCountries = countryDetails.filter((country: any) => {
       const matchesName =
-        name && country.name.common.toLowerCase().includes((name as string).toLowerCase());
+        !name || country.name.common.toLowerCase().includes((name as string).toLowerCase());
+
       const matchesRegion =
-        region && country.region?.toLowerCase() === (region as string).toLowerCase();
+        !region || country.region?.toLowerCase() === (region as string).toLowerCase();
+
       const matchesCapital =
-        capital &&
+        !capital ||
         country.capital?.some(
           (cap: string) => cap.toLowerCase() === (capital as string).toLowerCase()
         );
+
       const matchesTimeZone =
-        timezone &&
-        country.timezones?.some(
-          (tz: string) => tz.toLowerCase().trim() === (timezone as any).toLowerCase().trim()
-        );
+        !timezone ||
+        country.timezones?.some((tz: string) => {
+          const normalizedCountryTz = normalizeTimezone(tz);
+          const normalizedSearchTz = normalizeTimezone(timezone as string);
+          logger.debug(`Country timezone: ${tz} -> ${normalizedCountryTz}`);
+          logger.debug(`Search timezone: ${timezone} -> ${normalizedSearchTz}`);
+          return normalizedCountryTz === normalizedSearchTz;
+        });
 
-      if (name && region && capital && timezone) {
-        return matchesName && matchesRegion && matchesCapital && matchesTimeZone;
-      }
-      if (name && region && capital) {
-        return matchesName && matchesRegion && matchesCapital;
-      }
-      if (name && region) {
-        return matchesName && matchesRegion;
-      }
-      if (name) {
-        return matchesName;
-      }
-      if (region) {
-        return matchesRegion;
-      }
-      if (capital) {
-        return matchesCapital;
-      }
-      if (timezone) {
-        return matchesTimeZone;
-      }
-
-      return false;
+      return matchesName && matchesRegion && matchesCapital && matchesTimeZone;
     });
 
     if (filteredCountries.length === 0) {
@@ -285,14 +382,58 @@ export const searchCountries = async (
       });
     }
 
-    const result = filterDetails(filteredCountries);
+    // Calculate pagination values
+    const totalItems = filteredCountries.length;
+    const totalPages = Math.ceil(totalItems / limit);
+    const skip = (page - 1) * limit;
 
-    // Send the response
-    return res.status(200).json({
+    // Validate requested page number
+    if (page > totalPages) {
+      return res.status(400).json({
+        status: 400,
+        message: `Page ${page} does not exist. Total pages available: ${totalPages}`,
+      });
+    }
+
+    // Slice the data array for pagination
+    const paginatedData = filterDetails(filteredCountries.slice(skip, skip + limit));
+
+    // Generate pagination URLs
+    const baseUrl = `${req.protocol}://${req.get('host')}${req.path}`;
+    const queryParams = new URLSearchParams(req.query as any);
+
+    const createUrl = (pageNum: number): string => {
+      queryParams.set('page', pageNum.toString());
+      queryParams.set('limit', limit.toString());
+      return `${baseUrl}?${queryParams.toString()}`;
+    };
+
+    // Prepare pagination metadata with URLs
+    const paginationData: PaginationData = {
+      currentPage: page,
+      totalPages: totalPages,
+      totalItems: totalItems,
+      itemsPerPage: limit,
+      hasNextPage: page < totalPages,
+      hasPrevPage: page > 1,
+      links: {
+        current: createUrl(page),
+        next: page < totalPages ? createUrl(page + 1) : null,
+        prev: page > 1 ? createUrl(page - 1) : null,
+        first: createUrl(1),
+        last: createUrl(totalPages),
+      },
+    };
+
+    // Send the paginated response
+    const response: PaginatedResponse = {
       status: 200,
       message: 'Country search results',
-      data: result,
-    });
+      data: paginatedData,
+      pagination: paginationData,
+    };
+
+    return res.status(200).json(response);
   } catch (error: any) {
     logger.error(`Error searching for countries: ${error.message}`);
     next(error); // Pass error to the Express error handler
@@ -306,6 +447,9 @@ const filterDetails = (filteredData: any): CountryData[] => {
     population: country.population,
     flag: country.flags?.svg || country.flags?.png || null,
     region: country.region,
+    languages: country.languages,
+    code: country.cca2,
+    capital: country.capital,
     currencies: Object.values(country.currencies || {}).map((currency: any) => ({
       name: currency.name,
       symbol: currency.symbol,

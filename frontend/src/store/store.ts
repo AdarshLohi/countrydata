@@ -1,13 +1,12 @@
 import { configureStore } from '@reduxjs/toolkit';
-import countryReducer from './countrySlice';
+import countryReducer from '@/store/countrySlice';
 
-const store = configureStore({
+export const store = configureStore({
   reducer: {
-    country: countryReducer,
+    countries: countryReducer,
   },
 });
 
+// RootState and AppDispatch types
 export type RootState = ReturnType<typeof store.getState>;
 export type AppDispatch = typeof store.dispatch;
-
-export default store;

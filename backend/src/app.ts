@@ -41,7 +41,7 @@ redisClient.connect();
 
 const limiterPublic = rateLimit({
   windowMs: 10 * 60 * 1000, // 10 minutes
-  max: 50, // Limit each IP to 1000 requests per windowMs
+  max: 500, // Limit each IP to 1000 requests per windowMs
   message: 'Too many requests from this IP, please try again after 10 minutes.',
 });
 
