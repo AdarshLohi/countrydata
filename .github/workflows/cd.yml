@@ -1,0 +1,21 @@
+name: CI Pipeline
+
+on:
+  workflow: ['CI build']
+  types:
+    - completed
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Login Dockerhub
+        env:
+          username: adarshlohi
+          password: dckr_pat_QstbUjNnmCZXyGk2Tf0ifmFy71I
+        run: docker login -u $DOCKER_USERNAME -p $DOCKER_PASSWORD
+      - name: Build the Docker image for backend
+        run: docker build -t adarshlohi/cicd-pipeline:latest ./backend
+      - name: Push to Dockerhub
+        run: docker push adarshlohi/cicd-pipeline:latest
