@@ -1,21 +1,18 @@
-name: CI Pipeline
+name: CD Pipeline
 
 on:
-  workflow: ['CI build']
+  workflow: ['CI Pipeline']
   types:
     - completed
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
+
     steps:
-      - uses: actions/checkout@v3
-      - name: Login Dockerhub
-        env:
-          username: adarshlohi
-          password: dckr_pat_QstbUjNnmCZXyGk2Tf0ifmFy71I
-        run: docker login -u $DOCKER_USERNAME -p $DOCKER_PASSWORD
-      - name: Build the Docker image for backend
-        run: docker build -t adarshlohi/cicd-pipeline:latest ./backend
-      - name: Push to Dockerhub
-        run: docker push adarshlohi/cicd-pipeline:latest
+      - name: Pull the docker image from Dockerhub
+        run: sudo docker pull adarshlohi/cicd-pipeline:latest
+      - name: Delete the old docker container
+        run: sudo docker rm -f cicd-pipeline-container || true
+      - name: Run the docker container
+        run: sudo docker run -d -p 8080:4000 --name cicd-pipeline-container adarshlohi/cicd-pipeline:latest
